@@ -1,0 +1,108 @@
+﻿@page "/Test1"
+@using System.Collections
+@using System.Linq;
+
+<SfGrid TValue="Order" AllowPaging="true" AllowFiltering="true" AllowSorting="true" AllowExcelExport="true" AllowGrouping="true">
+    <GridGroupSettings Columns="@GroupedColumns"></GridGroupSettings>
+    <GridFilterSettings Type="Syncfusion.Blazor.Grids.FilterType.Menu" />
+    <SfDataManager AdaptorInstance="@typeof(OrderAdaptor)" Adaptor="Adaptors.CustomAdaptor" />
+    <GridPageSettings PageSizes="true" />
+    <GridColumns>
+        <GridColumn Width="150">
+            <GridCommandColumns>
+                <GridCommandColumn Type="CommandButtonType.Edit" ButtonOption="@(new CommandButtonOptions {IconCss="e-icons e-edit", CssClass="e-flat" })" />
+                <GridCommandColumn Type="CommandButtonType.Delete" ButtonOption="@(new CommandButtonOptions {IconCss="e-icons e-delete", CssClass="e-flat" })" />
+            </GridCommandColumns>
+        </GridColumn>
+        <GridColumn Field=@nameof(Order.Id) IsPrimaryKey="true" AutoFit="true"/>
+        <GridColumn Field=@nameof(Order.Type) AutoFit="true" />
+        <GridColumn Field=@nameof(Order.Category) AutoFit="true" />
+        <GridColumn Field=@nameof(Order.Amount) />
+    </GridColumns>
+</SfGrid>
+
+@code{
+    public string[] GroupedColumns = new string[] { "Type", "Category" };
+
+    public class Order
+    {
+        public int Id { get; set; }
+        public string Type { get; set; }
+        public string Category { get; set; }
+        public decimal Amount { get; set; }
+    }
+
+    public class OrderAdaptor : DataAdaptor
+    {
+        // Performs data Read operation
+        public override object Read(DataManagerRequest dm, string key = null)
+        {
+            var data = new List<Order>()
+{
+                new (){Id = 100,Type = "Type1",Category ="Category1",Amount =1000 },
+                new (){Id = 101,Type = "Type1",Category ="Category2",Amount =1000 },
+                new (){Id = 102,Type = "Type1",Category ="Category2",Amount =1000 },
+                new (){Id = 104,Type = "Type2",Category ="Category2",Amount =1000 },
+                new (){Id = 105,Type = "Type2",Category ="Category2",Amount =1000 },
+                new (){Id = 106,Type = "Type2",Category ="Category3",Amount =1000 },
+                new (){Id = 107,Type = "Type3",Category ="Category4",Amount =1000 },
+                new (){Id = 108,Type = "Type3",Category ="Category4",Amount =1000 },
+                new (){Id = 109,Type = "Type3",Category ="Category5",Amount =1000 },
+                new (){Id = 110,Type = "Type3",Category ="Category5",Amount =1000 },
+            };
+
+            IEnumerable<Order> dataSource = data.ToList();
+
+            if (dm.Search is { Count: > 0 })
+            {
+                // Searching
+                dataSource = DataOperations.PerformSearching(dataSource, dm.Search);
+            }
+            if (dm.Sorted is { Count: > 0 })
+            {
+                // Sorting
+                dataSource = DataOperations.PerformSorting(dataSource, dm.Sorted);
+            }
+            if (dm.Where is { Count: > 0 })
+            {
+                // Filtering
+                dataSource = DataOperations.PerformFiltering(dataSource, dm.Where, dm.Where[0].Operator);
+            }
+            int count = dataSource.Count();
+            if (dm.Skip != 0)
+            {
+                //Paging
+                dataSource = DataOperations.PerformSkip(dataSource, dm.Skip);
+            }
+            if (dm.Take != 0)
+            {
+                dataSource = DataOperations.PerformTake(dataSource, dm.Take);
+            }
+
+            var dataObject = new DataResult();
+
+            if (dm.Group != null)
+            {
+                IEnumerable resultData = dataSource;
+
+                foreach (var group in dm.Group)
+                {
+                    resultData = DataUtil.Group<Order>(resultData, group, dm.Aggregates, 0, dm.GroupByFormatter);
+                }
+                dataObject.Result = resultData;
+                dataObject.Count = count;
+                return dm.RequiresCounts ? dataObject : dataSource;
+            }
+
+            if (dm.Aggregates != null) // Aggregation
+            {
+                dataObject.Result = dataSource;
+                dataObject.Count = count;
+                dataObject.Aggregates = DataUtil.PerformAggregation(dataSource, dm.Aggregates);
+
+                return dm.RequiresCounts ? dataObject : dataSource;
+            }
+            return dm.RequiresCounts ? new DataResult() { Result = dataSource, Count = count } : dataSource;
+        }
+    }
+}
